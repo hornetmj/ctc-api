@@ -172,44 +172,20 @@ int connect_server (int conn_type, char *url, int *ctc_handle_id)
 {
     CTC_HANDLE *ctc_handle;
 
-    int state = 0;
-
-    if (IS_FAILURE (alloc_ctc_handle (&ctc_handle)))
+    if (IS_FAILURE (validate_url (url, ctc_handle) || IS_FAILURE (alloc_ctc_handle (&ctc_handle))))
     {
-        goto error;
-    }
-
-    state = 1;
-
-    if (IS_FAILURE (validate_url (url, ctc_handle)))
-    {
-        goto error;
+        return CTC_FAILURE;
     }
 
     if (IS_FAILURE (open_control_session (&ctc_handle->control_session, conn_type)))
     {
-        goto error;
+        free_ctc_handle (ctc_handle);
+        return CTC_FAILURE;
     }
-
-    state = 2;
 
     *ctc_handle_id = ctc_handle->ID;
-
+    
     return CTC_SUCCESS;
-
-error:
-
-    switch (state)
-    {
-        case 2:
-            close_control_session (&ctc_handle->control_session);
-        case 1:
-            free_ctc_handle (ctc_handle);
-        default:
-            break;
-    }
-
-    return CTC_FAILURE;
 }
 
 int disconnect_server (int ctc_handle_id)
