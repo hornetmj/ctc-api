@@ -1,4 +1,4 @@
-#include "ctc_core.h"
+#include "ctccl_api_impl.h"
 
 int ctc_open_connection (CTC_CONN_TYPE connection_type, char *connection_string)
 {

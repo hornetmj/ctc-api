@@ -1,12 +1,12 @@
-#ifndef _CTC_NETWORK_H_
-#define _CTC_NETWORK_H_
+#ifndef _CTCCL_NETWORK_H_
+#define _CTCCL_NETWORK_H_
 
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <jansson.h>
-#include "ctc_common.h"
-#include "ctc_cubrid_def.h"
+#include "ctccl_common.h"
+#include "ctccl_cubrid_def.h"
 
 #define CTCP_MAJOR_VERSION 1
 #define CTCP_MINOR_VERSION 0
@@ -183,17 +183,17 @@ struct json_result
     json_t *result_array;
 };
 
-int open_control_session (CONTROL_SESSION *control_session, CTC_CONN_TYPE conn_type);
-int close_control_session (CONTROL_SESSION *control_session);
-int close_job_session_socket_only (JOB_SESSION *job_session);
-int open_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session);
-int close_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session, bool is_send_ctcp);
-int request_server_status (CONTROL_SESSION *control_session, CTC_SERVER_STATUS *server_status);
-int request_register_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name);
-int request_unregister_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name);
-int request_start_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session);
-int request_stop_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_CLOSE_CONDITION job_close_condition, bool is_send_ctcp);
-int request_job_status (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_STATUS *job_status);
-int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT *json_result, JOB_THREAD* job_thread);
+int net_open_control_session (CONTROL_SESSION *control_session, CTC_CONN_TYPE conn_type);
+int net_close_control_session (CONTROL_SESSION *control_session);
+int net_close_job_session_socket_only (JOB_SESSION *job_session);
+int net_open_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session);
+int net_close_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session, bool is_send_ctcp);
+int net_request_server_status (CONTROL_SESSION *control_session, CTC_SERVER_STATUS *server_status);
+int net_request_register_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name);
+int net_request_unregister_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name);
+int net_request_start_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session);
+int net_request_stop_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_CLOSE_CONDITION job_close_condition, bool is_send_ctcp);
+int net_request_job_status (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_STATUS *job_status);
+int net_convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT *json_result, JOB_THREAD* job_thread);
 
 #endif

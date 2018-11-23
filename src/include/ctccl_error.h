@@ -1,5 +1,5 @@
-#ifndef _CTC_ERROR_H_
-#define _CTC_ERROR_H_
+#ifndef _CTCCL_ERROR_H_
+#define _CTCCL_ERROR_H_
 
 enum ctc_error_code
 {

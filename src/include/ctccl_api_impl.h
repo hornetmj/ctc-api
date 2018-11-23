@@ -1,7 +1,7 @@
-#ifndef _CTC_CORE_H_
-#define _CTC_CORE_H_
+#ifndef _CTCCL_API_IMPL_H_
+#define _CTCCL_API_IMPL_H_
 
-#include "ctc_network.h"
+#include "ctccl_network.h"
 
 #define CTC_HANDLE_MAX_COUNT (100) /* CTC_SESSION_GROUP_MAX */
 #define JOB_DESC_MAX_COUNT   (10)

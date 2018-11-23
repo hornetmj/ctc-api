@@ -5,9 +5,10 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
-#include "ctc_network.h"
+#include "ctccl_network.h"
 
-int make_ctcp_header (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int header_data, CTCP *ctcp)
+static
+int net_make_ctcp_header (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int header_data, CTCP *ctcp)
 {
     memset (&ctcp->header, 0, CTCP_PACKET_HEADER_SIZE);
 
@@ -41,7 +42,8 @@ int make_ctcp_header (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_
     return CTC_SUCCESS;
 }
 
-int make_ctcp_data_payload (char *data, int data_size, CTCP *ctcp)
+static
+int net_make_ctcp_data_payload (char *data, int data_size, CTCP *ctcp)
 {
     if (data_size > CTCP_DATA_PAYLOAD_MAX_SIZE)
     {
@@ -53,7 +55,8 @@ int make_ctcp_data_payload (char *data, int data_size, CTCP *ctcp)
     return CTC_SUCCESS;
 }
 
-int send_stream (int sockfd, char *data, int data_size)
+static
+int net_send_stream (int sockfd, char *data, int data_size)
 {
     int write_size;
 
@@ -72,7 +75,8 @@ int send_stream (int sockfd, char *data, int data_size)
     return CTC_SUCCESS;
 }
 
-int send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int header_data, char *data)
+static
+int net_send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int header_data, char *data)
 {
     CTCP ctcp;
 
@@ -80,7 +84,7 @@ int send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session
     int send_data_size = 0;
     int retval;
 
-    retval = make_ctcp_header (op_id, op_param, control_session, job_session, header_data, &ctcp);
+    retval = net_make_ctcp_header (op_id, op_param, control_session, job_session, header_data, &ctcp);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -89,7 +93,7 @@ int send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session
     if (op_id == CTCP_REGISTER_TABLE ||
         op_id == CTCP_UNREGISTER_TABLE)
     {
-        retval = make_ctcp_data_payload (data, header_data, &ctcp);
+        retval = net_make_ctcp_data_payload (data, header_data, &ctcp);
         if (IS_FAILED (retval))
         {
             goto error;
@@ -102,7 +106,7 @@ int send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session
 
     if (op_id != CTCP_CREATE_JOB_SESSION)
     {
-        if (IS_FAILED (send_stream (control_session->sockfd, (char *)&ctcp, send_data_size)))
+        if (IS_FAILED (net_send_stream (control_session->sockfd, (char *)&ctcp, send_data_size)))
         {
             retval = CTC_FAILED_COMMUNICATE_CONTROL_SESSION;
             goto error;
@@ -110,7 +114,7 @@ int send_ctcp (CTCP_OP_ID op_id, char op_param, CONTROL_SESSION *control_session
     }
     else
     {
-        if (IS_FAILED (send_stream (job_session->sockfd, (char *)&ctcp.header, send_data_size)))
+        if (IS_FAILED (net_send_stream (job_session->sockfd, (char *)&ctcp.header, send_data_size)))
         {
             retval = CTC_FAILED_COMMUNICATE_JOB_SESSION;
             goto error;
@@ -124,7 +128,8 @@ error:
     return retval;
 }
 
-int check_operation_id (CTCP_HEADER *ctcp_header, CTCP_OP_ID op_id)
+static
+int net_check_operation_id (CTCP_HEADER *ctcp_header, CTCP_OP_ID op_id)
 {
     if (ctcp_header->op_id != op_id)
     {
@@ -134,7 +139,8 @@ int check_operation_id (CTCP_HEADER *ctcp_header, CTCP_OP_ID op_id)
     return CTC_SUCCESS;
 }
 
-int check_result_code (CTCP_HEADER *ctcp_header)
+static
+int net_check_result_code (CTCP_HEADER *ctcp_header)
 {
     switch (ctcp_header->op_param_or_result_code)
     {
@@ -210,7 +216,8 @@ int check_result_code (CTCP_HEADER *ctcp_header)
     }
 }
 
-int check_job_desc (CTCP_HEADER *ctcp_header, JOB_SESSION *job_session)
+static
+int net_check_job_desc (CTCP_HEADER *ctcp_header, JOB_SESSION *job_session)
 {
     if (job_session != NULL && job_session->job_desc != INITIAL_JOB_DESC)
     {
@@ -223,7 +230,8 @@ int check_job_desc (CTCP_HEADER *ctcp_header, JOB_SESSION *job_session)
     return CTC_SUCCESS;
 }
 
-int check_session_gid (CTCP_HEADER *ctcp_header, CONTROL_SESSION *control_session)
+static
+int net_check_session_gid (CTCP_HEADER *ctcp_header, CONTROL_SESSION *control_session)
 {
     if (control_session->session_gid != INITIAL_SESSION_GID)
     {
@@ -236,7 +244,8 @@ int check_session_gid (CTCP_HEADER *ctcp_header, CONTROL_SESSION *control_sessio
     return CTC_SUCCESS;
 }
 
-int check_protocol_version (CTCP_HEADER *ctcp_header)
+static
+int net_check_protocol_version (CTCP_HEADER *ctcp_header)
 {
     if (ctcp_header->version[0] != CTCP_MAJOR_VERSION)
     {
@@ -246,7 +255,8 @@ int check_protocol_version (CTCP_HEADER *ctcp_header)
     return CTC_SUCCESS;
 }
 
-void set_session_gid (CONTROL_SESSION *control_session, int session_gid)
+static
+void net_set_session_gid (CONTROL_SESSION *control_session, int session_gid)
 {
 #if defined(DEBUG)
     assert (session_gid != INITIAL_SESSION_GID);
@@ -255,7 +265,8 @@ void set_session_gid (CONTROL_SESSION *control_session, int session_gid)
     control_session->session_gid = session_gid;
 }
 
-void set_job_desc (JOB_SESSION *job_session, unsigned short job_desc)
+static
+void net_set_job_desc (JOB_SESSION *job_session, unsigned short job_desc)
 {
 #if defined(DEBUG)
     assert (job_desc != INITIAL_JOB_DESC);
@@ -264,7 +275,8 @@ void set_job_desc (JOB_SESSION *job_session, unsigned short job_desc)
     job_session->job_desc = job_desc;
 }
 
-int check_received_job_status (int job_status)
+static
+int net_check_received_job_status (int job_status)
 {
     if (job_status == CTC_JOB_WAITING ||
         job_status == CTC_JOB_PROCESSING ||
@@ -279,7 +291,8 @@ int check_received_job_status (int job_status)
     }
 }
 
-int check_received_server_status (int server_status)
+static
+int net_check_received_server_status (int server_status)
 {
     if (server_status == CTC_SERVER_NOT_READY ||
         server_status == CTC_SERVER_RUNNING ||
@@ -293,7 +306,8 @@ int check_received_server_status (int server_status)
     }
 }
 
-int recv_stream (int sockfd, char *buffer, int requested_recv_size, int timeout)
+static
+int net_recv_stream (int sockfd, char *buffer, int requested_recv_size, int timeout)
 {
     struct pollfd poll_fds[1];
     int poll_timeout;
@@ -362,7 +376,8 @@ int recv_stream (int sockfd, char *buffer, int requested_recv_size, int timeout)
     return CTC_SUCCESS;
 }
 
-int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int *header_data, char *is_fragmented)
+static
+int net_recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SESSION *job_session, int *header_data, char *is_fragmented)
 {
     CTCP_HEADER ctcp_header;
     int retval;
@@ -370,7 +385,7 @@ int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SE
     if (op_id == CTCP_CREATE_JOB_SESSION_RESULT ||
         op_id == CTCP_CAPTURED_DATA_RESULT)
     {
-        retval = recv_stream (job_session->sockfd, (char *)&ctcp_header, CTCP_PACKET_HEADER_SIZE, POLL_TIMEOUT);
+        retval = net_recv_stream (job_session->sockfd, (char *)&ctcp_header, CTCP_PACKET_HEADER_SIZE, POLL_TIMEOUT);
         if (IS_FAILED (retval))
         {
             if (retval != CTC_FAILED_POLL_TIMEOUT)
@@ -383,7 +398,7 @@ int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SE
     }
     else
     {
-        retval = recv_stream (control_session->sockfd, (char *)&ctcp_header, CTCP_PACKET_HEADER_SIZE, POLL_TIMEOUT);
+        retval = net_recv_stream (control_session->sockfd, (char *)&ctcp_header, CTCP_PACKET_HEADER_SIZE, POLL_TIMEOUT);
         if (IS_FAILED (retval))
         {
             if (retval != CTC_FAILED_POLL_TIMEOUT)
@@ -396,35 +411,35 @@ int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SE
     }
 
     /* Operation ID */
-    retval = check_operation_id (&ctcp_header, op_id);
+    retval = net_check_operation_id (&ctcp_header, op_id);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
     /* Result code */
-    retval = check_result_code (&ctcp_header);
+    retval = net_check_result_code (&ctcp_header);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
     /* Job descriptor */
-    retval = check_job_desc (&ctcp_header, job_session);
+    retval = net_check_job_desc (&ctcp_header, job_session);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
     /* Session group ID */
-    retval = check_session_gid (&ctcp_header, control_session);
+    retval = net_check_session_gid (&ctcp_header, control_session);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
     /* Protocol version */
-    retval = check_protocol_version (&ctcp_header);
+    retval = net_check_protocol_version (&ctcp_header);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -433,15 +448,15 @@ int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SE
     switch (ctcp_header.op_id)
     {
         case CTCP_CREATE_CONTROL_SESSION_RESULT:
-            set_session_gid (control_session, ntohl (ctcp_header.session_gid));
+            net_set_session_gid (control_session, ntohl (ctcp_header.session_gid));
 
             break;
         case CTCP_CREATE_JOB_SESSION_RESULT:
-            set_job_desc (job_session, ntohs (ctcp_header.job_desc));
+            net_set_job_desc (job_session, ntohs (ctcp_header.job_desc));
 
             break;
         case CTCP_REQUEST_JOB_STATUS_RESULT:
-            retval = check_received_job_status (ntohl (ctcp_header.header_data));
+            retval = net_check_received_job_status (ntohl (ctcp_header.header_data));
             if (IS_FAILED (retval))
             {
                 goto error;
@@ -451,7 +466,7 @@ int recv_ctcp_header (CTCP_OP_ID op_id, CONTROL_SESSION *control_session, JOB_SE
 
             break;
         case CTCP_REQUEST_SERVER_STATUS_RESULT:
-            retval = check_received_server_status (ntohl (ctcp_header.header_data));
+            retval = net_check_received_server_status (ntohl (ctcp_header.header_data));
             if (IS_FAILED (retval))
             {
                 goto error;
@@ -476,11 +491,12 @@ error:
     return retval;
 }
 
-int recv_ctcp_data_payload (JOB_SESSION *job_session, char *buffer, int data_size)
+static
+int net_recv_ctcp_data_payload (JOB_SESSION *job_session, char *buffer, int data_size)
 {
     int retval;
 
-    retval = recv_stream (job_session->sockfd, buffer, data_size, POLL_TIMEOUT);
+    retval = net_recv_stream (job_session->sockfd, buffer, data_size, POLL_TIMEOUT);
     if (IS_FAILED (retval))
     {
         if (retval != CTC_FAILED_POLL_TIMEOUT)
@@ -494,7 +510,7 @@ int recv_ctcp_data_payload (JOB_SESSION *job_session, char *buffer, int data_siz
     return CTC_SUCCESS;
 }
 
-int open_control_session (CONTROL_SESSION *control_session, CTC_CONN_TYPE conn_type)
+int net_open_control_session (CONTROL_SESSION *control_session, CTC_CONN_TYPE conn_type)
 {
     struct sockaddr_in server_addr;
     int retval;
@@ -521,13 +537,13 @@ int open_control_session (CONTROL_SESSION *control_session, CTC_CONN_TYPE conn_t
         goto error;
     }
 
-    retval = send_ctcp (CTCP_CREATE_CONTROL_SESSION, conn_type, control_session, NULL, 0, NULL);
+    retval = net_send_ctcp (CTCP_CREATE_CONTROL_SESSION, conn_type, control_session, NULL, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_CREATE_CONTROL_SESSION_RESULT, control_session, NULL, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_CREATE_CONTROL_SESSION_RESULT, control_session, NULL, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -545,17 +561,17 @@ error:
     return retval;
 }
 
-int close_control_session (CONTROL_SESSION *control_session)
+int net_close_control_session (CONTROL_SESSION *control_session)
 {
     int retval;
 
-    retval = send_ctcp (CTCP_DESTROY_CONTROL_SESSION, 0, control_session, NULL, 0, NULL);
+    retval = net_send_ctcp (CTCP_DESTROY_CONTROL_SESSION, 0, control_session, NULL, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_DESTROY_CONTROL_SESSION_RESULT, control_session, NULL, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_DESTROY_CONTROL_SESSION_RESULT, control_session, NULL, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -576,7 +592,7 @@ error:
     return retval;
 }
 
-int open_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
+int net_open_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
 {
     struct sockaddr_in server_addr;
     int retval;
@@ -603,13 +619,13 @@ int open_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session
         goto error;
     }
 
-    retval = send_ctcp (CTCP_CREATE_JOB_SESSION, 0, control_session, job_session, 0, NULL);
+    retval = net_send_ctcp (CTCP_CREATE_JOB_SESSION, 0, control_session, job_session, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_CREATE_JOB_SESSION_RESULT, control_session, job_session, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_CREATE_JOB_SESSION_RESULT, control_session, job_session, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -627,19 +643,19 @@ error:
     return retval;
 }
 
-int close_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session, bool is_send_ctcp)
+int net_close_job_session (CONTROL_SESSION *control_session, JOB_SESSION *job_session, bool is_send_ctcp)
 {
     int retval;
 
     if (is_send_ctcp)
     {
-        retval = send_ctcp (CTCP_DESTROY_JOB_SESSION, 0, control_session, job_session, 0, NULL);
+        retval = net_send_ctcp (CTCP_DESTROY_JOB_SESSION, 0, control_session, job_session, 0, NULL);
         if (IS_FAILED (retval))
         {
             goto error;
         }
 
-        retval = recv_ctcp_header (CTCP_DESTROY_JOB_SESSION_RESULT, control_session, job_session, NULL, NULL);
+        retval = net_recv_ctcp_header (CTCP_DESTROY_JOB_SESSION_RESULT, control_session, job_session, NULL, NULL);
         if (IS_FAILED (retval))
         {
             goto error;
@@ -661,17 +677,17 @@ error:
     return retval;
 }
 
-int request_server_status (CONTROL_SESSION *control_session, CTC_SERVER_STATUS *server_status)
+int net_request_server_status (CONTROL_SESSION *control_session, CTC_SERVER_STATUS *server_status)
 {
     int retval;
 
-    retval = send_ctcp (CTCP_REQUEST_SERVER_STATUS, 0, control_session, NULL, 0, NULL);
+    retval = net_send_ctcp (CTCP_REQUEST_SERVER_STATUS, 0, control_session, NULL, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_REQUEST_SERVER_STATUS_RESULT, control_session, NULL, (int *)server_status, NULL);
+    retval = net_recv_ctcp_header (CTCP_REQUEST_SERVER_STATUS_RESULT, control_session, NULL, (int *)server_status, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -684,7 +700,8 @@ error:
     return retval;
 }
 
-int make_data_payload (char *user_name, char *table_name, char *buffer, int buffer_size, int *data_len)
+static
+int net_make_table_info (char *user_name, char *table_name, char *buffer, int buffer_size, int *data_len)
 {
     int data_size;
     int user_name_len;
@@ -725,25 +742,25 @@ int make_data_payload (char *user_name, char *table_name, char *buffer, int buff
     return CTC_SUCCESS;
 }
 
-int request_register_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name)
+int net_request_register_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name)
 {
-    char data_payload[CTCP_DATA_PAYLOAD_MAX_SIZE];
-    int data_payload_len = 0;
+    char data[CTCP_DATA_PAYLOAD_MAX_SIZE];
+    int data_len = 0;
     int retval;
 
-    retval = make_data_payload (user_name, table_name, data_payload, CTCP_DATA_PAYLOAD_MAX_SIZE, &data_payload_len);
+    retval = net_make_table_info (user_name, table_name, data, CTCP_DATA_PAYLOAD_MAX_SIZE, &data_len);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = send_ctcp (CTCP_REGISTER_TABLE, 0, control_session, job_session, data_payload_len, data_payload);
+    retval = net_send_ctcp (CTCP_REGISTER_TABLE, 0, control_session, job_session, data_len, data);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_REGISTER_TABLE_RESULT, control_session, job_session, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_REGISTER_TABLE_RESULT, control_session, job_session, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -756,25 +773,25 @@ error:
     return retval;
 }
 
-int request_unregister_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name)
+int net_request_unregister_table (CONTROL_SESSION *control_session, JOB_SESSION *job_session, char *user_name, char *table_name)
 {
-    char data_payload[CTCP_DATA_PAYLOAD_MAX_SIZE];
-    int data_payload_len = 0;
+    char data[CTCP_DATA_PAYLOAD_MAX_SIZE];
+    int data_len = 0;
     int retval;
 
-    retval = make_data_payload (user_name, table_name, data_payload, CTCP_DATA_PAYLOAD_MAX_SIZE, &data_payload_len);
+    retval = net_make_table_info (user_name, table_name, data, CTCP_DATA_PAYLOAD_MAX_SIZE, &data_len);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = send_ctcp (CTCP_UNREGISTER_TABLE, 0, control_session, job_session, data_payload_len, data_payload);
+    retval = net_send_ctcp (CTCP_UNREGISTER_TABLE, 0, control_session, job_session, data_len, data);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_UNREGISTER_TABLE_RESULT, control_session, job_session, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_UNREGISTER_TABLE_RESULT, control_session, job_session, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -787,7 +804,8 @@ error:
     return retval;
 }
 
-void init_capture_data (CAPTURE_DATA *capture_data)
+static
+void net_init_capture_data (CAPTURE_DATA *capture_data)
 {
     int i;
 
@@ -806,7 +824,8 @@ void init_capture_data (CAPTURE_DATA *capture_data)
     capture_data->remaining_buffer_size = 0;
 }
 
-void clear_capture_data (CAPTURE_DATA *capture_data)
+static
+void net_clear_capture_data (CAPTURE_DATA *capture_data)
 {
     int i;
 
@@ -819,7 +838,8 @@ void clear_capture_data (CAPTURE_DATA *capture_data)
     }
 }
 
-int alloc_data_buffer (CAPTURE_DATA *capture_data, int requested_size, char **data_buffer_p)
+static
+int net_alloc_data_buffer (CAPTURE_DATA *capture_data, int requested_size, char **data_buffer_p)
 {
     char *data_buffer;
     int retval;
@@ -901,7 +921,8 @@ error:
     return retval;
 }
 
-void set_next_write_pos (CAPTURE_DATA *capture_data, int write_size)
+static
+void net_set_next_write_pos (CAPTURE_DATA *capture_data, int write_size)
 {
 #if defined(DEBUG)
     assert (capture_data->buffer_w_pos != NULL);
@@ -911,7 +932,8 @@ void set_next_write_pos (CAPTURE_DATA *capture_data, int write_size)
     capture_data->buffer_data_limit[capture_data->raw_data_buffer_w_idx] = capture_data->buffer_w_pos;
 }
 
-int read_received_data (JOB_SESSION *job_session, char *buffer, int buffer_size, int data_size, char is_fragmented)
+static
+int net_read_received_data (JOB_SESSION *job_session, char *buffer, int buffer_size, int data_size, char is_fragmented)
 {
     int retval;
 
@@ -923,7 +945,7 @@ int read_received_data (JOB_SESSION *job_session, char *buffer, int buffer_size,
     memcpy (buffer, &is_fragmented, sizeof (is_fragmented));
     buffer += sizeof (is_fragmented);
 
-    retval = recv_ctcp_data_payload (job_session, buffer, data_size);
+    retval = net_recv_ctcp_data_payload (job_session, buffer, data_size);
     if (IS_FAILED (retval))
     {
         return retval;
@@ -932,7 +954,8 @@ int read_received_data (JOB_SESSION *job_session, char *buffer, int buffer_size,
     return CTC_SUCCESS;
 }
 
-int read_received_capture_transaction (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
+static
+int net_read_received_capture_transaction (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
 {
     char *data_buffer;
     int need_buffer_size;
@@ -945,7 +968,7 @@ int read_received_capture_transaction (CONTROL_SESSION *control_session, JOB_SES
     {
         data_payload_size = 0;
 
-        retval = recv_ctcp_header (CTCP_CAPTURED_DATA_RESULT, control_session, job_session, &data_payload_size, &is_fragmented);
+        retval = net_recv_ctcp_header (CTCP_CAPTURED_DATA_RESULT, control_session, job_session, &data_payload_size, &is_fragmented);
         if (IS_FAILED (retval))
         {
             if (retval == CTC_FAILED_POLL_TIMEOUT)
@@ -962,7 +985,7 @@ int read_received_capture_transaction (CONTROL_SESSION *control_session, JOB_SES
 
         need_buffer_size = sizeof (int) + sizeof (char) + data_payload_size;
 
-        retval = alloc_data_buffer (&job_session->capture_data, need_buffer_size, &data_buffer);
+        retval = net_alloc_data_buffer (&job_session->capture_data, need_buffer_size, &data_buffer);
         if (IS_FAILED (retval))
         {
             goto error;
@@ -972,13 +995,13 @@ int read_received_capture_transaction (CONTROL_SESSION *control_session, JOB_SES
         assert (data_buffer != NULL);
 #endif
 
-        retval = read_received_data (job_session, data_buffer, need_buffer_size, data_payload_size, is_fragmented);
+        retval = net_read_received_data (job_session, data_buffer, need_buffer_size, data_payload_size, is_fragmented);
         if (IS_FAILED (retval))
         {
             goto error;
         }
 
-        set_next_write_pos (&job_session->capture_data, need_buffer_size);
+        net_set_next_write_pos (&job_session->capture_data, need_buffer_size);
     }
 
     return CTC_SUCCESS;
@@ -988,7 +1011,8 @@ error:
     return retval;
 }
 
-void *job_thread_main (void *arg)
+static
+void *net_job_thread_main (void *arg)
 {
     JOB_THREAD_ARGS *job_thread_args = (JOB_THREAD_ARGS *)arg;
 
@@ -998,19 +1022,20 @@ void *job_thread_main (void *arg)
     job_session->job_thread.is_thr_alive = true;
     job_session->job_thread.thr_retval = CTC_SUCCESS;
 
-    init_capture_data (&job_session->capture_data);
+    net_init_capture_data (&job_session->capture_data);
 
-    job_session->job_thread.thr_retval = read_received_capture_transaction (control_session, job_session);
+    job_session->job_thread.thr_retval = net_read_received_capture_transaction (control_session, job_session);
 
     pthread_exit (NULL);
 }
 
-int create_job_thread (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
+static
+int net_create_job_thread (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
 {
     job_session->job_thread.thr_args.control_session = control_session;
     job_session->job_thread.thr_args.job_session = job_session;
 
-    if (IS_FAILED (pthread_create (&job_session->job_thread.thr_id, NULL, job_thread_main, (void *)&job_session->job_thread.thr_args)))
+    if (IS_FAILED (pthread_create (&job_session->job_thread.thr_id, NULL, net_job_thread_main, (void *)&job_session->job_thread.thr_args)))
     {
         return CTC_FAILED_CREATE_JOB_THREAD;
     }
@@ -1018,7 +1043,8 @@ int create_job_thread (CONTROL_SESSION *control_session, JOB_SESSION *job_sessio
     return CTC_SUCCESS;
 }
 
-int destroy_job_thread (JOB_THREAD *job_thread)
+static
+int net_destroy_job_thread (JOB_THREAD *job_thread)
 {
     if (job_thread->is_thr_alive == true)
     {
@@ -1033,7 +1059,8 @@ int destroy_job_thread (JOB_THREAD *job_thread)
     return job_thread->thr_retval;
 }
 
-int check_job_thread_status (JOB_THREAD *job_thread)
+static
+int net_check_job_thread_status (JOB_THREAD *job_thread)
 {
     if (job_thread->is_thr_alive == true &&
         job_thread->thr_retval == CTC_SUCCESS)
@@ -1046,13 +1073,13 @@ int check_job_thread_status (JOB_THREAD *job_thread)
     }
 }
 
-int request_start_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
+int net_request_start_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session)
 {
     int retval;
 
     int state = 0;
 
-    retval = create_job_thread (control_session, job_session);
+    retval = net_create_job_thread (control_session, job_session);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -1060,13 +1087,13 @@ int request_start_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_se
 
     state = 1;
 
-    retval = send_ctcp (CTCP_START_CAPTURE, 0, control_session, job_session, 0, NULL);
+    retval = net_send_ctcp (CTCP_START_CAPTURE, 0, control_session, job_session, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_START_CAPTURE_RESULT, control_session, job_session, NULL, NULL);
+    retval = net_recv_ctcp_header (CTCP_START_CAPTURE_RESULT, control_session, job_session, NULL, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -1078,25 +1105,25 @@ error:
 
     if (state)
     {
-        destroy_job_thread (&job_session->job_thread);
+        net_destroy_job_thread (&job_session->job_thread);
     }
 
     return retval;
 }
 
-int request_stop_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_CLOSE_CONDITION job_close_condition, bool is_send_ctcp)
+int net_request_stop_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_CLOSE_CONDITION job_close_condition, bool is_send_ctcp)
 {
     int retval;
 
     if (is_send_ctcp)
     {
-        retval = send_ctcp (CTCP_STOP_CAPTURE, job_close_condition, control_session, job_session, 0, NULL);
+        retval = net_send_ctcp (CTCP_STOP_CAPTURE, job_close_condition, control_session, job_session, 0, NULL);
         if (IS_FAILED (retval))
         {
             goto error;
         }
 
-        retval = recv_ctcp_header (CTCP_STOP_CAPTURE_RESULT, control_session, job_session, NULL, NULL);
+        retval = net_recv_ctcp_header (CTCP_STOP_CAPTURE_RESULT, control_session, job_session, NULL, NULL);
         if (IS_FAILED (retval))
         {
             goto error;
@@ -1105,27 +1132,28 @@ int request_stop_capture (CONTROL_SESSION *control_session, JOB_SESSION *job_ses
 
     if (job_close_condition == CTC_JOB_CLOSE_IMMEDIATELY)
     {
-        retval = destroy_job_thread (&job_session->job_thread);
+        retval = net_destroy_job_thread (&job_session->job_thread);
         if (IS_FAILED (retval))
         {
             goto error;
         }
 
-        clear_capture_data (&job_session->capture_data);
+        net_clear_capture_data (&job_session->capture_data);
     }
 
     return CTC_SUCCESS;
 
 error:
 
-    destroy_job_thread (&job_session->job_thread);
+    net_destroy_job_thread (&job_session->job_thread);
   
-    clear_capture_data (&job_session->capture_data);
+    net_clear_capture_data (&job_session->capture_data);
 
     return retval;
 }
 
-char *get_read_pos (CAPTURE_DATA *capture_data)
+static
+char *net_get_read_pos (CAPTURE_DATA *capture_data)
 {
     volatile char *read_pos = NULL;
 
@@ -1178,7 +1206,8 @@ char *get_read_pos (CAPTURE_DATA *capture_data)
     } while (1);
 }
 
-int set_next_read_pos (CAPTURE_DATA *capture_data, int read_size, char *next_read_pos)
+static
+int net_set_next_read_pos (CAPTURE_DATA *capture_data, int read_size, char *next_read_pos)
 {
 #if defined(DEBUG)
     assert (capture_data->buffer_r_pos != NULL);
@@ -1199,7 +1228,8 @@ int set_next_read_pos (CAPTURE_DATA *capture_data, int read_size, char *next_rea
     return CTC_SUCCESS;
 }
 
-int read_data_info (char **read_pos_p, int *read_data_size, char *is_fragmented)
+static
+int net_read_data_info (char **read_pos_p, int *read_data_size, char *is_fragmented)
 {
     char *read_pos;
 
@@ -1217,7 +1247,7 @@ int read_data_info (char **read_pos_p, int *read_data_size, char *is_fragmented)
 }
 
 /*
-int read_transaction_id (char **read_pos_p, int *tx_id)
+int net_read_transaction_id (char **read_pos_p, int *tx_id)
 {
     int tx_id;
 
@@ -1241,7 +1271,8 @@ int read_transaction_id (char **read_pos_p, int *tx_id)
 }
 */
 
-int read_transaction_id (char **read_pos_p, int *tx_id)
+static
+int net_read_transaction_id (char **read_pos_p, int *tx_id)
 {
     char *read_pos;
     int tx_id_ntoh;
@@ -1264,7 +1295,8 @@ int read_transaction_id (char **read_pos_p, int *tx_id)
     return CTC_SUCCESS;
 }
 
-int read_number_of_items (char **read_pos_p, int *number_of_items)
+static
+int net_read_number_of_items (char **read_pos_p, int *number_of_items)
 {
     char *read_pos;
 
@@ -1289,7 +1321,7 @@ int read_number_of_items (char **read_pos_p, int *number_of_items)
 }
 
 /*
-int read_user_name (char **read_pos_p, json_t *root)
+int net_read_user_name (char **read_pos_p, json_t *root)
 {
     char user_name[128];
     int user_name_len;
@@ -1319,7 +1351,8 @@ int read_user_name (char **read_pos_p, json_t *root)
 }
 */
 
-int read_table_name (char **read_pos_p, json_t *root)
+static
+int net_read_table_name (char **read_pos_p, json_t *root)
 {
     char table_name[128];
     int table_name_len;
@@ -1352,7 +1385,8 @@ int read_table_name (char **read_pos_p, json_t *root)
     return CTC_SUCCESS;
 }
 
-int read_statement_type (char **read_pos_p, json_t *root, CTC_STMT_TYPE *stmt_type)
+static
+int net_read_statement_type (char **read_pos_p, json_t *root, CTC_STMT_TYPE *stmt_type)
 {
     char *read_pos;
 
@@ -1388,7 +1422,8 @@ int read_statement_type (char **read_pos_p, json_t *root, CTC_STMT_TYPE *stmt_ty
     return CTC_SUCCESS;
 }
 
-int read_key_columns (char **read_pos_p, json_t *root)
+static
+int net_read_key_columns (char **read_pos_p, json_t *root)
 {
     char attr_name[128];
     int attr_name_len;
@@ -1483,7 +1518,8 @@ int read_key_columns (char **read_pos_p, json_t *root)
     return CTC_SUCCESS;
 }
 
-int read_columns (char **read_pos_p, json_t *root)
+static
+int net_read_columns (char **read_pos_p, json_t *root)
 {
     char attr_name[128];
     int attr_name_len;
@@ -1590,7 +1626,8 @@ int read_columns (char **read_pos_p, json_t *root)
     return CTC_SUCCESS;
 }
 
-int register_json (JSON_RESULT *json_result, int register_idx, json_t *json)
+static
+int net_register_json (JSON_RESULT *json_result, int register_idx, json_t *json)
 {
     if (IS_NOT_NULL (json_result->json[register_idx]))
     {
@@ -1602,7 +1639,7 @@ int register_json (JSON_RESULT *json_result, int register_idx, json_t *json)
     return CTC_SUCCESS;
 }
 
-int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT *json_result, JOB_THREAD *job_thread)
+int net_convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT *json_result, JOB_THREAD *job_thread)
 {
     char *read_pos = NULL;
     int data_size;
@@ -1617,19 +1654,19 @@ int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT
 
     int retval;
 
-    retval = check_job_thread_status (job_thread);
+    retval = net_check_job_thread_status (job_thread);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    read_pos = get_read_pos (capture_data);
+    read_pos = net_get_read_pos (capture_data);
     if (IS_NULL (read_pos))
     {
         return CTC_SUCCESS_NO_DATA;
     }
 
-    retval = read_data_info (&read_pos, &data_size, &is_fragmented);
+    retval = net_read_data_info (&read_pos, &data_size, &is_fragmented);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -1650,13 +1687,13 @@ int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT
     }
 
     /* Transaction ID */
-    retval = read_transaction_id (&read_pos, &tx_id);
+    retval = net_read_transaction_id (&read_pos, &tx_id);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = read_number_of_items (&read_pos, &number_of_items);
+    retval = net_read_number_of_items (&read_pos, &number_of_items);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -1681,14 +1718,14 @@ int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT
         json_object_set_new (root, "Transaction ID", json_integer (tx_id));
 
         /* Table name */
-        retval = read_table_name (&read_pos, root);
+        retval = net_read_table_name (&read_pos, root);
         if (IS_FAILED (retval))
         {
             goto error;
         }
 
         /* Statement type */
-        retval = read_statement_type (&read_pos, root, &stmt_type);
+        retval = net_read_statement_type (&read_pos, root, &stmt_type);
         if (IS_FAILED (retval))
         {
             goto error;
@@ -1698,7 +1735,7 @@ int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT
         if (stmt_type == CTC_STMT_TYPE_DELETE ||
             stmt_type == CTC_STMT_TYPE_UPDATE)
         {
-            retval = read_key_columns (&read_pos, root);
+            retval = net_read_key_columns (&read_pos, root);
             if (IS_FAILED (retval))
             {
                 goto error;
@@ -1709,21 +1746,21 @@ int convert_capture_transaction_to_json (CAPTURE_DATA *capture_data, JSON_RESULT
         if (stmt_type == CTC_STMT_TYPE_INSERT ||
             stmt_type == CTC_STMT_TYPE_UPDATE)
         {
-            retval = read_columns (&read_pos, root);
+            retval = net_read_columns (&read_pos, root);
             if (IS_FAILED (retval))
             {
                 goto error;
             }
         }
 
-        retval = register_json (json_result, i, root);
+        retval = net_register_json (json_result, i, root);
         if (IS_FAILED (retval))
         {
             goto error;
         }
     }
 
-    retval = set_next_read_pos (capture_data, data_size, read_pos);
+    retval = net_set_next_read_pos (capture_data, data_size, read_pos);
     if (IS_FAILED (retval))
     {
         goto error;
@@ -1736,17 +1773,17 @@ error:
     return retval;
 }
 
-int request_job_status (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_STATUS *job_status)
+int net_request_job_status (CONTROL_SESSION *control_session, JOB_SESSION *job_session, CTC_JOB_STATUS *job_status)
 {
     int retval;
 
-    retval = send_ctcp (CTCP_REQUEST_JOB_STATUS, 0, control_session, job_session, 0, NULL);
+    retval = net_send_ctcp (CTCP_REQUEST_JOB_STATUS, 0, control_session, job_session, 0, NULL);
     if (IS_FAILED (retval))
     {
         goto error;
     }
 
-    retval = recv_ctcp_header (CTCP_REQUEST_JOB_STATUS_RESULT, control_session, job_session, (int *)job_status, NULL);
+    retval = net_recv_ctcp_header (CTCP_REQUEST_JOB_STATUS_RESULT, control_session, job_session, (int *)job_status, NULL);
     if (IS_FAILED (retval))
     {
         goto error;

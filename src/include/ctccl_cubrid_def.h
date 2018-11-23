@@ -1,3 +1,6 @@
+#ifndef _CTCCL_CUBRID_DEF_H_
+#define _CTCCL_CUBRID_DEF_H_
+
 typedef enum
 {
     DB_TYPE_FIRST = 0,      /* first for iteration */
@@ -52,3 +55,5 @@ typedef enum
 
     DB_TYPE_LAST = DB_TYPE_JSON
 } DB_TYPE;
+
+#endif

@@ -1,8 +1,8 @@
-#ifndef _CTC_COMMON_H_
-#define _CTC_COMMON_H_
+#ifndef _CTCCL_COMMON_H_
+#define _CTCCL_COMMON_H_
 
-#include "ctc_api.h"
-#include "ctc_error.h"
+#include "ctccl_api.h"
+#include "ctccl_error.h"
 
 #define IS_SUCCESS(a)  (a == CTC_SUCCESS)
 #define IS_FAILED(a)   (a != CTC_SUCCESS && a != CTC_SUCCESS_FRAGMENTED && a != CTC_SUCCESS_NO_DATA)
